@@ -1,0 +1,147 @@
+{
+  "name": "connect-github-mcp",
+  "description": "连接 GitHub MCP、配置 GitHub 访问、安装 GitHub 工具、设置 Docker MCP GitHub 集成。触发词：连接github、连接 GitHub、配置 GitHub、GitHub MCP、安装 GitHub、设置 GitHub",
+  "version": "1.0.0",
+  "author": "Memorythirty",
+  "created": "2026-05-11",
+  "prerequisites": {
+    "docker_desktop": {
+      "description": "Docker Desktop 必须安装并运行",
+      "check_command": "docker info 2>&1 | Select-String -Pattern 'Server Version'",
+      "expected_output": "Server Version: 29.4.1 或更高版本",
+      "install_url": "https://www.docker.com/products/docker-desktop/"
+    },
+    "github_token": {
+      "description": "GitHub Personal Access Token (Classic)",
+      "required_permissions": ["repo", "read:org", "workflow"],
+      "generate_url": "https://github.com/settings/tokens",
+      "instructions": [
+        "1. 访问 https://github.com/settings/tokens",
+        "2. 点击 'Generate new token' -> 'Classic'",
+        "3. 填写 Note（描述）",
+        "4. 选择权限：repo, read:org, workflow",
+        "5. 点击 'Generate token'",
+        "6. 复制生成的 token（只显示一次）"
+      ]
+    }
+  },
+  "installation_steps": [
+    {
+      "step": 0,
+      "name": "检查前置条件",
+      "description": "验证 Docker、Secret、Profile 和连接状态",
+      "commands": [
+        {
+          "description": "检查 Docker 是否运行",
+          "command": "docker info 2>&1 | Select-String -Pattern 'Server Version'",
+          "environment": "windows_powershell"
+        },
+        {
+          "description": "检查 GitHub Secret 是否已设置",
+          "command": "docker mcp secret ls",
+          "environment": "windows_powershell",
+          "success_indicator": "github.personal_access_token"
+        },
+        {
+          "description": "检查 Profile 是否存在",
+          "command": "docker mcp profile list",
+          "environment": "windows_powershell",
+          "success_indicator": "dev_workflow"
+        },
+        {
+          "description": "检查客户端连接状态",
+          "command": "docker mcp client ls --global",
+          "environment": "windows_powershell",
+          "success_indicator": "claude-code: connected"
+        }
+      ]
+    },
+    {
+      "step": 1,
+      "name": "设置 GitHub Secret",
+      "description": "将 GitHub Token 存储到 Docker MCP 的密钥管理器中",
+      "command": "docker mcp secret set github.personal_access_token=<YOUR_TOKEN>",
+      "environment": "windows_powershell",
+      "notes": [
+        "将 <YOUR_TOKEN> 替换为你的 GitHub Personal Access Token",
+        "Token 需要 repo、read:org、workflow 权限"
+      ]
+    },
+    {
+      "step": 2,
+      "name": "安装 dev-workflow 模板",
+      "description": "安装包含 GitHub 工具的 MCP 模板",
+      "command": "docker mcp template use dev-workflow --name dev-workflow",
+      "environment": "windows_powershell"
+    },
+    {
+      "step": 3,
+      "name": "全局连接客户端",
+      "description": "将 Claude Code 连接到 Docker MCP",
+      "command": "docker mcp client connect claude-code --profile dev_workflow --global",
+      "environment": "windows_powershell",
+      "notes": [
+        "必须使用 --global 参数，否则可能出现 'could not find root project root' 错误"
+      ]
+    },
+    {
+      "step": 4,
+      "name": "激活 Profile",
+      "description": "激活 dev_workflow profile 以启用 MCP 工具",
+      "command": "mcp-activate-profile: dev_workflow",
+      "environment": "claude_code_mcp",
+      "notes": [
+        "这一步必须执行，否则后续新对话无法使用 MCP 工具"
+      ]
+    },
+    {
+      "step": 5,
+      "name": "重载 VSCode",
+      "description": "重新加载 VSCode 以应用配置更改",
+      "instructions": [
+        "按 Ctrl+Shift+P 打开命令面板",
+        "输入 'Developer: Reload Window'",
+        "按 Enter 执行"
+      ]
+    }
+  ],
+  "verification": {
+    "description": "验证 GitHub MCP 是否正常工作",
+    "test_commands": [
+      {
+        "description": "获取 GitHub 用户信息",
+        "command": "mcp__MCP_DOCKER__get_me",
+        "environment": "claude_code_mcp"
+      }
+    ]
+  },
+  "troubleshooting": [
+    {
+      "error": "could not find root project root",
+      "solution": "在连接命令中添加 --global 参数",
+      "command": "docker mcp client connect claude-code --profile dev_workflow --global"
+    },
+    {
+      "error": "工具不可用",
+      "solution": "重新加载 VSCode 或重新激活 profile",
+      "commands": [
+        "Ctrl+Shift+P -> Developer: Reload Window",
+        "或执行 mcp-activate-profile: dev_workflow"
+      ]
+    },
+    {
+      "error": "Token 401/403 错误",
+      "solution": "重新生成 GitHub Token 并更新 Secret",
+      "commands": [
+        "1. 访问 https://github.com/settings/tokens 重新生成",
+        "2. 执行: docker mcp secret set github.personal_access_token=<NEW_TOKEN>"
+      ]
+    }
+  ],
+  "environment_requirements": {
+    "os": "Windows 10/11 或 Windows Server 2019+",
+    "shell": "PowerShell 5.1+",
+    "docker": "Docker Desktop 4.x+",
+    "ide": "VSCode with Claude Code extension"
+  }
+}
